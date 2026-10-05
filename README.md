@@ -119,32 +119,30 @@ docker compose -f docker-compose-hdfs.yml down
 Como no hay volúmenes, esto elimina también los datos guardados en HDFS.
  
 ## 6. Comparación con docker-hadoop
- 
+
 Comparamos con [big-data-europe/docker-hadoop](https://github.com/big-data-europe/docker-hadoop). El objetivo es ver diferencias de arquitectura, tecnología y propósito, no decidir cuál es mejor.
- 
-| Característica | docker-hadoop | crs4/hadoop-docker (nuestro repositorio) |
+
+| Característica | docker-hadoop | Repositorio seleccionado (crs4/hadoop-docker) |
 |---|---|---|
 | Tecnología principal | Hadoop | Hadoop |
 | Docker | Sí | Sí |
 | Docker Compose | Sí | Sí |
-| Número de contenedores | 5 (namenode, datanode, resourcemanager, nodemanager, historyserver) | 3 en el compose HDFS que usamos (namenode, datanode, client); 6 en el compose completo |
-| Almacenamiento distribuido | HDFS | HDFS |
-| Procesamiento distribuido | YARN y MapReduce | YARN y MapReduce en el compose completo; en el de HDFS no se usa |
-| Interfaces web | NameNode, DataNode, ResourceManager, NodeManager, HistoryServer | Las mismas, publicadas por puerto en cada servicio (NameNode 9870, DataNode 9864, etc.) |
-| Persistencia | Define volúmenes para los datos | No define volúmenes: los datos se pierden con `down` |
-| Configuración | Variables de entorno en un archivo `hadoop.env` | Variables en el compose y `.env`; configuración reemplazable con `HADOOP_CUSTOM_CONF_DIR` |
-| Contenedor cliente | No incluye uno dedicado | Incluye un contenedor `client` para ejecutar comandos |
-| Imágenes | Publicadas por su autor | Se pueden construir con `build.sh` desde una imagen base común, con una sola receta parametrizada |
-| Versiones de Hadoop | Imágenes para versiones concretas | Permite elegir versión con `HADOOP_VERSION` (3.2.1 por defecto; también Hadoop 2) |
-| Complejidad de instalación | Baja | Baja si las imágenes se descargan; media si hay que construirlas |
-| Documentación | README breve con ejemplos | README breve, centrado en construcción y configuración |
-| Mantenimiento | Sin cambios recientes | Sin cambios desde hace unos 6 años; hay una deuda técnica conocida con los scripts `*-daemon.sh` |
-| Caso de uso | Cluster Hadoop de pruebas y aprendizaje | Imágenes Hadoop personalizables para pruebas y desarrollo |
- 
+| Número de contenedores | 5: namenode, datanode, resourcemanager, nodemanager, historyserver | 3: namenode, datanode, client (compose HDFS) |
+| Almacenamiento distribuido | HDFS (NameNode + DataNode) | HDFS con 1 DataNode |
+| Procesamiento distribuido | YARN y MapReduce | No en nuestro despliegue (solo HDFS). El compose completo incluye YARN y MapReduce, pero no las levantamos |
+| Interfaces web | 5: NameNode 9870, DataNode 9864, ResourceManager 8088, NodeManager 8042, HistoryServer 8188 | 2: NameNode (9870, HTTPS 9871) y DataNode (9864, HTTPS 9865) |
+| Persistencia | Volúmenes de Docker para datos del NameNode, DataNode e HistoryServer | Ninguna: no define volúmenes, los datos se pierden con `docker compose down` |
+| Complejidad de instalación | Baja: `docker-compose up` con imágenes ya publicadas | Baja-media: `pull` y `up`; si las imágenes no están, hay que construirlas con `build.sh` |
+| Documentación | README breve: arranque rápido, URLs y configuración por variables en `hadoop.env` | README breve: construcción, uso, cambio de versión y configuración propia |
+| Caso de uso | Clúster HDFS/YARN de ejemplo y base para otros stacks | Imágenes Hadoop personalizables, una por servicio, para pruebas y desarrollo |
+
 **Diferencias principales**
-- Ambos son entornos de pruebas de Hadoop sobre Docker Compose, con HDFS y YARN.
-- docker-hadoop está pensado para levantar un cluster ya armado, con persistencia mediante volúmenes.
-- crs4/hadoop-docker se centra en cómo se **construyen** las imágenes: una receta común, una imagen por servicio y configuración reemplazable. Por eso nos permitió elegir una parte del cluster (solo HDFS), aunque sin persistencia.
+
+- Ambos son entornos de pruebas de Hadoop sobre Docker Compose. docker-hadoop levanta HDFS y YARN juntos; en nuestro despliegue de crs4/hadoop-docker solo levantamos HDFS.
+- docker-hadoop está pensado para levantar un clúster ya armado, con persistencia mediante volúmenes y configuración por variables en `hadoop.env`.
+- crs4/hadoop-docker se centra en cómo se **construyen** las imágenes: una receta común, una imagen por servicio, versión de Hadoop elegible (`HADOOP_VERSION`) y configuración reemplazable (`HADOOP_CUSTOM_CONF_DIR`). Por eso nos permitió elegir una parte del clúster (solo HDFS), aunque sin persistencia.
+- crs4/hadoop-docker incluye un contenedor `client` dedicado para ejecutar comandos; docker-hadoop no incluye uno.
+- Mantenimiento: el último commit de crs4/hadoop-docker es del 17 de diciembre de 2020, y su deuda técnica conocida son los scripts `*-daemon.sh`, obsoletos en Hadoop 3.
  
 ## 7. Limitaciones encontradas
 - **Scripts deprecados:** `cmd/hadoop.sh` y `cmd/hdfs.sh` usan `hadoop-daemon.sh`, `yarn-daemon.sh` y `mr-jobhistory-daemon.sh`, obsoletos en Hadoop 3 aunque todavía funcionan en 3.2.x. Los servicios individuales que usamos no dependen de ellos.
