@@ -9,8 +9,8 @@
 | Nombre | hadoop-docker |
 | Autor / organización | CRS4 |
 | URL | https://github.com/crs4/hadoop-docker |
-| Fecha de creación | *(completar: primer commit en el historial del repo)* |
-| Última actualización | *(completar: fecha exacta del último commit; se ve "hace unos 6 años")* |
+| Fecha de creación | 15/02/2019 |
+| Última actualización | 17/12/2020 |
 | Estrellas | 5 |
 | Forks | 4 |
 | Licencia | Apache-2.0 |
@@ -34,6 +34,8 @@
 
 ## 3. Archivos principales del repositorio
 
+Los archivos `.env`, `build.sh` y `docker-compose-hdfs.yml` se copiaron a nuestro repositorio; el resto se describe del repositorio original.
+
 | Archivo / carpeta | Para qué sirve |
 |---|---|
 | `docker-compose.yml` | Cluster completo: 6 servicios (HDFS + YARN + MapReduce + cliente) |
@@ -48,6 +50,8 @@
 | `test/` | Pruebas del proyecto |
 
 ## 4. Arquitectura
+
+El repositorio ofrece dos archivos compose. En este trabajo se desplegó `docker-compose-hdfs.yml` (3 contenedores); el compose completo (`docker-compose.yml`, 6 contenedores) se analiza solo como referencia.
 
 ### 4.1 Cluster usado en este trabajo (`docker-compose-hdfs.yml`)
 
@@ -97,30 +101,28 @@ Como el orden de arranque no está garantizado, un servicio puede tardar unos se
 |---|---|---|
 | `HADOOP_VERSION` | `.env`, `build.sh`, compose completo | Versión de Hadoop (3.2.1) y etiqueta de las imágenes |
 | `NN_PORT`, `NN_HTTP_PORT`, `DN_PORT`, `DN_HTTP_PORT`, `DN_IPC_PORT`, `RM_PORT`, `NM_PORT`, `HS_PORT` | `.env` | Puertos publicados en el compose completo |
-| `NAMENODE_HOSTNAME` | Compose, entrypoint | Nombre del host donde está el NameNode |
-| `RESOURCEMANAGER_HOSTNAME` | Compose, entrypoint | Nombre del host donde está el ResourceManager |
+| `NAMENODE_HOSTNAME` | Compose | Nombre del host donde está el NameNode |
+| `RESOURCEMANAGER_HOSTNAME` | Compose | Nombre del host donde está el ResourceManager |
 | `HADOOP_CUSTOM_CONF_DIR` | README del repo | Carpeta con archivos de configuración propios que reemplazan los predeterminados |
 | `DEBUG` | `cmd/namenode.sh` | Si está definida, el script muestra cada comando que ejecuta |
 
 ### 4.7 Archivos de configuración
 
-- `.env`, `docker-compose.yml` y `docker-compose-hdfs.yml`.
-- Dentro de las imágenes, la configuración de Hadoop está en `/opt/hadoop/etc/hadoop`. El repo trae una configuración sencilla pensada para pruebas y permite reemplazarla con `HADOOP_CUSTOM_CONF_DIR` o con un volumen montado.
-- El `entrypoint.sh` de la imagen base reemplaza `localhost` por el nombre del host del NameNode en la propiedad `fs.defaultFS`.
+- Archivos del repositorio original: `.env`, `docker-compose.yml` y `docker-compose-hdfs.yml`. En nuestro repositorio se copiaron `.env` y `docker-compose-hdfs.yml`.
+- Según el README del repositorio, la configuración de Hadoop dentro de las imágenes está en `/opt/hadoop/etc/hadoop`. Es una configuración sencilla para pruebas y se puede reemplazar con la variable `HADOOP_CUSTOM_CONF_DIR` o montando un volumen.
+- Según el mismo README, el entrypoint reemplaza `localhost` en la propiedad `fs.defaultFS` por el hostname del contenedor, o por el valor de `NAMENODE_HOSTNAME` si está definida.
 
 ### 4.8 Diagrama de arquitectura
 
-*(Insertar aquí el diagrama del cluster HDFS de 3 contenedores)*
-
-```
-![Diagrama de arquitectura](diagrama-arquitectura.png)
-```
+![Diagrama de arquitectura](../evidencias/diagrama-arquitectura.png)
 
 ## 5. Cómo se construyen las imágenes
 
 1. **Imagen base (`base/Dockerfile`)**: se construye en dos etapas. En la primera, a partir de `crs4/hadoop-nativelibs`, se descarga e instala Hadoop con el script `install_hadoop.sh`. En la segunda, se parte de una imagen limpia `ubuntu:20.04`, se instala Java 8 y se copia solo el Hadoop ya instalado. Así la imagen final es más liviana. Se publica como `crs4/hadoop-base:3.2.1`.
 2. **Imágenes de servicio (`Dockerfile` de la raíz)**: una sola receta con un argumento `cmd`. Toma la imagen base y copia `cmd/<cmd>.sh` como `/cmd.sh`, que es lo que se ejecuta al iniciar. Cambiando `cmd` se obtienen las imágenes `namenode`, `datanode`, `resourcemanager`, `nodemanager`, `historyserver`, `hadoopclient`, `hdfs` y `hadoop`.
 3. **`build.sh`**: construye primero la base, luego recorre la lista de servicios construyendo cada imagen, y al final construye la variante de DataNode seguro.
+
+En este trabajo no se construyeron las imágenes: se usaron las ya publicadas en Docker Hub (`crs4/namenode:3.2.1`, `crs4/datanode:3.2.1` y `crs4/hadoopclient:3.2.1`).
 
 ## 6. Cómo arranca cada servicio
 
@@ -134,7 +136,7 @@ Ejemplo, el NameNode (`cmd/namenode.sh`):
 
 - **Scripts deprecados**: `cmd/hadoop.sh` y `cmd/hdfs.sh` usan `hadoop-daemon.sh`, `yarn-daemon.sh` y `mr-jobhistory-daemon.sh`, que están obsoletos en Hadoop 3. Siguen funcionando en 3.2.x. El repo tiene un issue abierto sobre esto, porque cambiarlos exigiría lógica distinta para Hadoop 2 y Hadoop 3. Los servicios individuales usados aquí (`namenode.sh`) no dependen de esos scripts.
 - **Sin persistencia**: no hay volúmenes, así que los datos se pierden al eliminar los contenedores.
-- **Sin actualizaciones recientes**: el último cambio tiene unos 6 años. Las imágenes se basan en Ubuntu 20.04 y en la versión 3.2.1 de Hadoop, ambas antiguas.
+- **Sin actualizaciones recientes**: el último cambio fue el 17/12/2020. Las imágenes se basan en Ubuntu 20.04 y en la versión 3.2.1 de Hadoop, ambas antiguas.
 - **Sin control de arranque**: no hay `depends_on` ni healthchecks.
 - **Puertos publicados**: el compose publica varios puertos al host; en un entorno real habría que limitarlos.
 

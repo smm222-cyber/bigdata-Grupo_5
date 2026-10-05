@@ -1,13 +1,5 @@
 # bigdata-Grupo_5
  
-**LG14 – Investigación y despliegue de un repositorio Big Data con Docker**
-Universidad del Valle · Tecnologías Emergentes
- 
-## Integrantes
-- Monserrat Salazar Moring
-- Nayara Kate Hurtado Barja
-- Liz Gabriela Candia Escobar
- 
 ## 1. Repositorio seleccionado
  
 | Dato | Valor |
@@ -32,7 +24,7 @@ Desplegamos el compose de HDFS (`docker-compose-hdfs.yml`), que tiene 3 contened
 | datanode | `crs4/datanode:3.2.1` | Guarda los bloques de datos |
 | client | `crs4/hadoopclient:3.2.1` | Contenedor desde el que ejecutamos los comandos `hdfs dfs` |
  
-![Diagrama de arquitectura](docs/diagrama-arquitectura.png)
+![Diagrama de arquitectura](evidencias/diagrama-arquitectura.png)
  
 Puntos importantes:
 - Los tres contenedores se conectan a la red `bridge` que Docker Compose crea por defecto y se encuentran por nombre (`namenode`).
@@ -57,43 +49,32 @@ cd hadoop-docker
 ```bash
 ls -la
 ```
-![ls -la](evidencias/00-ls-la.png)
+![ls -la](evidencias/01-ls.png)
  
 ### Paso 3. Analizar el compose
 ```bash
 cat docker-compose-hdfs.yml
 ```
-![Compose HDFS](evidencias/01-compose-hdfs.png)
+![Compose HDFS](evidencias/03-docker-composehdfs.png)
  
-Usamos una copia de este archivo en la raíz de nuestro repositorio. Le quitamos la línea `version: "3"`, porque Docker Compose v2 la considera obsoleta y solo muestra una advertencia.
+Usamos una copia de este archivo en la raíz de nuestro repositorio.
+
+Otras capturas del análisis (`.env`, `build.sh`, `Dockerfile`, búsqueda de `daemon` e imágenes descargadas) están en la carpeta [`evidencias/`](evidencias/).
  
-### Paso 4. Construir o descargar las imágenes y ejecutar
-Para descargar las imágenes publicadas y levantar el cluster:
+### Paso 4. Descargar las imágenes y ejecutar
+Las imágenes `crs4/namenode`, `crs4/datanode` y `crs4/hadoopclient` (versión 3.2.1) están publicadas en Docker Hub, por lo que no fue necesario construirlas. Docker Compose las descarga y levanta el cluster en segundo plano:
 ```bash
-docker compose -f docker-compose-hdfs.yml pull
 docker compose -f docker-compose-hdfs.yml up -d
 ```
-Si las imágenes no estuvieran disponibles, se construyen con el script del repositorio (copia en `scripts/build.sh`):
-```bash
-export HADOOP_VERSION=3.2.1
-bash build.sh
-```
- 
+![docker compose up](evidencias/12-dockerup.png)
 ### Paso 5. Verificar los contenedores
 ```bash
 docker ps
 ```
 Se ven los tres contenedores (namenode, datanode y client) en estado `Up`.
  
-![docker ps](evidencias/03-docker-ps.png)
+![docker ps](evidencias/08-dockerps.png)
  
-### Paso 6. Verificar que el datanode se registró
-```bash
-docker compose -f docker-compose-hdfs.yml exec client hdfs dfsadmin -report
-```
-El reporte indica un datanode activo (Live datanodes: 1).
- 
-![dfsadmin report](evidencias/04-dfsadmin-report.png)
  
 ## 5. Prueba funcional (HDFS)
  
@@ -115,16 +96,16 @@ hdfs dfs -cat /user/prueba/prueba.txt
 | Consultar archivo | `hdfs dfs -ls /user/prueba` | `Found 1 items`: `prueba.txt`, 13 bytes |
 | Leer contenido | `hdfs dfs -cat /user/prueba/prueba.txt` | Muestra `hola bigdata` |
  
-![Prueba HDFS](evidencias/05-prueba-hdfs.png)
+![Prueba HDFS](evidencias/09-prueba-hdfs.png)
  
 El resultado también está guardado como texto en [`evidencias/prueba-hdfs.txt`](evidencias/prueba-hdfs.txt).
  
 ### Verificación desde la interfaz web del NameNode
 Con el cluster activo, entramos a http://localhost:9870. En la página principal se ve un nodo activo y, en *Utilities → Browse the file system*, el archivo dentro de `/user/prueba`.
  
-![NameNode web](evidencias/06-namenode-web.png)
+![NameNode web](evidencias/10-namenode-web.png)
  
-![Archivo en HDFS](evidencias/07-browse-hdfs.png)
+![Archivo en HDFS](evidencias/11-browse-hdf.png)
  
 ### Observaciones
 - Los mensajes `SASL encryption trust check` que aparecen al subir y leer el archivo son informativos (nivel `INFO`): indican que el cliente y el datanode no están marcados como de confianza para cifrado, algo normal en un cluster de pruebas sin seguridad.
@@ -168,7 +149,7 @@ Comparamos con [big-data-europe/docker-hadoop](https://github.com/big-data-europ
 ## 7. Limitaciones encontradas
 - **Scripts deprecados:** `cmd/hadoop.sh` y `cmd/hdfs.sh` usan `hadoop-daemon.sh`, `yarn-daemon.sh` y `mr-jobhistory-daemon.sh`, obsoletos en Hadoop 3 aunque todavía funcionan en 3.2.x. Los servicios individuales que usamos no dependen de ellos.
 - **Sin persistencia:** no hay volúmenes definidos.
-- **Sin mantenimiento reciente:** el último cambio es de hace unos 6 años.
+- **Sin mantenimiento reciente:** el último cambio fue el 17 de Diciembre de 2020.
 - **Sin control de arranque:** no hay `depends_on` ni healthchecks; el datanode puede tardar unos segundos en registrarse.
  
 ## 8. Estructura del repositorio
@@ -178,12 +159,11 @@ bigdata-Grupo_5/
 ├── docker-compose-hdfs.yml    compose usado en el despliegue
 ├── .env                       variables del repositorio original
 ├── scripts/
-│   ├── build.sh               construcción de imágenes (del repositorio original)
+│   ├── build.sh               script del repositorio original (copiado para análisis, no se usó en el despliegue)
 │   └── prueba-hdfs.sh         prueba funcional de HDFS
 ├── docs/
-│   ├── analisis.md            análisis detallado
-│   └── diagrama-arquitectura.png
-└── evidencias/                capturas y resultados de las pruebas
+│   └── analisis.md            análisis detallado
+└── evidencias/                capturas, resultados de las pruebas y diagrama de arquitectura
 ```
  
 ## 9. Conclusiones
